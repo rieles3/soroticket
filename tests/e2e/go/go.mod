@@ -1,6 +1,6 @@
 module soroticket-e2e
 
-go 1.25.12
+go 1.26.8
 
 require (
 	github.com/rieles3/soroticket/sdk/go v0.0.0

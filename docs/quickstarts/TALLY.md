@@ -38,6 +38,12 @@ Follow `next_cursor` until null for complete-set verification. The path uses the
 The collection demonstrates these distinct IDs and the full REST sequence.
 Periods are returned by Cloud (ISO year/week); use the returned value.
 
+In the console, create a Gift / delivery proof campaign with no attribution or
+payout, record an event, open **Tally & settlement** (or **Settlements** in the
+sidebar) and choose **Commit current period**. The resulting row must show
+Committed, its count/root and a transaction link. Count-only rows have no Settle
+action. No pending receipts means the commit button is disabled.
+
 Synthetic customer/order references are committed before leaving Cloud. The
 acceptance runner checks all successful transaction arguments, events/storage
 changes and the current Campaign/Shared/Tally/instance entries for plaintext

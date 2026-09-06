@@ -19,7 +19,7 @@ jobs:
           node-version-file: .nvmrc
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.25.12'
+          go-version: '1.26.8'
       - run: npm run bootstrap
       - run: npm --prefix sdk/ts run build
       - name: SDK Go live testnet

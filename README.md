@@ -102,7 +102,7 @@ soroticket/
 
 ## Verify it yourself
 
-The commands below validate individual components. Requires Go 1.25.12, Rust
+The commands below validate individual components. Requires Go 1.26.8, Rust
 with the `wasm32v1-none` target, the [`stellar`](https://developers.stellar.org/docs/tools/developer-tools) CLI and Node 22.
 
 ```bash

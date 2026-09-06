@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { api, fmtUnits, idemKey, trunc } from "../api.js";
 import { useApp } from "../store.jsx";
 import { BtnPrimary, ErrText, Ic, Modal, Pill, TxLink } from "../ui.jsx";
@@ -10,12 +10,22 @@ export function SettlementsPage() {
   const [sel, setSel] = useState("");
   const [confirm, setConfirm] = useState(null); // row to settle
   const [commitBusy, setCommitBusy] = useState(false);
+  const [loadError, setLoadError] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const requestVersion = useRef(0);
 
   const load = () => {
-    api.get("/v1/settlements").then(setData).catch(() => {});
-    api.get("/v1/campaigns").then((d) => setCampaigns(d.campaigns.filter((c) => c.attributed_to))).catch(() => {});
+    const version = ++requestVersion.current;
+    setLoading(true); setLoadError(null);
+    Promise.all([api.get("/v1/settlements"), api.get("/v1/campaigns")])
+      .then(([tallies, list]) => {
+        if (version !== requestVersion.current) return;
+        setData(tallies); setCampaigns(list.campaigns.filter((c) => c.shared_code));
+      })
+      .catch((error) => { if (version === requestVersion.current) setLoadError(error); })
+      .finally(() => { if (version === requestVersion.current) setLoading(false); });
   };
-  useEffect(() => { setData(null); setSel(""); load(); }, [env]);
+  useEffect(() => { setData(null); setCampaigns([]); setSel(""); setConfirm(null); load(); return () => { requestVersion.current++; }; }, [env]);
 
   const codes = useMemo(() => {
     const seen = new Map();
@@ -25,9 +35,11 @@ export function SettlementsPage() {
 
   const current = codes.find((c) => `${c.id}:${c.shared_code}` === sel) || codes[0];
   const rows = (data?.settlements || []).filter((s) => !current || (s.campaign_id === current.id && s.code === current.shared_code));
-  const payable = rows.filter((s) => !s.settled && s.attributed_count > 0);
+  const canSettle = (s) => !s.settled && s.attributed_count > 0 && BigInt(s.payout_rate || "0") > 0n;
+  const payable = rows.filter(canSettle);
   const settledTotal = rows.filter((s) => s.settled).reduce((acc, s) => acc + BigInt(s.payout_amount || 0), 0n);
   const pendingEvents = current?.pending_events || 0;
+  const hasPayout = current && BigInt(current.payout_rate || "0") > 0n;
 
   const commitNow = async () => {
     if (!current) return;
@@ -41,17 +53,19 @@ export function SettlementsPage() {
     finally { setCommitBusy(false); }
   };
 
+  if (loadError) return <div className="page"><ErrText err={loadError} /><button className="btn-plain" onClick={load}>Retry</button></div>;
+  if (loading && !data) return <div className="page" role="status">Loading tallies…</div>;
   if (codes.length === 0) return (
     <div className="page">
       <div className="page-head"><div>
-        <h1 className="display" style={{ fontSize: 27, margin: 0 }}>Settlements</h1>
-        <p className="page-sub">Creator & referral codes · pay per conversion</p>
+        <h1 className="display" style={{ fontSize: 27, margin: 0 }}>Tallies & settlements</h1>
+        <p className="page-sub">Anchor shared-code receipts and settle configured payouts.</p>
       </div></div>
       <div className="empty">
-        <h2 className="display" style={{ fontSize: 22, margin: 0 }}>No creator codes yet</h2>
+        <h2 className="display" style={{ fontSize: 22, margin: 0 }}>No shared codes yet</h2>
         <p style={{ fontSize: 13.5, color: "var(--ink-2)", margin: 0, maxWidth: "36em" }}>
-          Create a <strong>Creator / referral code</strong> campaign — every conversion credits the creator on-chain,
-          and each committed period settles here with one click.
+          Create a coupon, gift or creator campaign, record events, then anchor
+          the signed receipts here. Payouts are optional.
         </p>
       </div>
     </div>
@@ -61,8 +75,8 @@ export function SettlementsPage() {
     <div className="page">
       <div className="page-head">
         <div>
-          <h1 className="display" style={{ fontSize: 27, margin: 0 }}>Settlements</h1>
-          <p className="page-sub">Creator & referral codes · pay per conversion in {data?.settlements?.[0]?.payout_unit || "XLM"}</p>
+          <h1 className="display" style={{ fontSize: 27, margin: 0 }}>Tallies & settlements</h1>
+          <p className="page-sub">Anchor signed receipts on-chain · optional creator payouts</p>
         </div>
         <select className="select mono" style={{ width: 260, fontSize: 12.5, paddingTop: 9, paddingBottom: 9 }}
           value={sel || (current ? `${current.id}:${current.shared_code}` : "")} onChange={(e) => setSel(e.target.value)}>
@@ -73,14 +87,14 @@ export function SettlementsPage() {
       {current && (
         <div className="card" style={{ padding: "20px 24px", display: "flex", alignItems: "center", gap: 28, flexWrap: "wrap" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--ink-2)" }}>Creator</span>
-            <span className="mono" style={{ fontSize: 12.5, background: "var(--surface-inset)", border: "1px solid var(--line)", borderRadius: 8, padding: "4px 10px" }}>{trunc(current.attributed_to, 8, 5)}</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--ink-2)" }}>Attribution</span>
+            <span className="mono" style={{ fontSize: 12.5, background: "var(--surface-inset)", border: "1px solid var(--line)", borderRadius: 8, padding: "4px 10px" }}>{current.attributed_to ? trunc(current.attributed_to, 8, 5) : "Unattributed"}</span>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
             <span style={{ fontSize: 12, fontWeight: 600, color: "var(--ink-2)" }}>Rate</span>
             <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
-              <span className="mono" style={{ fontSize: 14, fontWeight: 600 }}>{fmtUnits(current.payout_rate)} XLM</span>
-              <span style={{ fontSize: 12, color: "var(--ink-3)" }}>/ redemption</span>
+              <span className="mono" style={{ fontSize: 14, fontWeight: 600 }}>{hasPayout ? `${fmtUnits(current.payout_rate)} XLM` : "Count-only"}</span>
+              {hasPayout && <span style={{ fontSize: 12, color: "var(--ink-3)" }}>/ redemption</span>}
               <span className="authtag"><Ic.lock width={11} height={11} />immutable</span>
             </span>
           </div>
@@ -94,7 +108,7 @@ export function SettlementsPage() {
                 <div style={{ fontSize: 11.5, fontWeight: 600, color: "var(--ink-2)" }}>Payable now · {payable[0].period_label}</div>
                 <div className="display" style={{ fontSize: 24 }}>{fmtUnits(payable[0].payout_preview)} <span style={{ fontSize: 14, color: "var(--ink-2)" }}>XLM</span></div>
               </div>
-            : <button className="btn-plain" style={{ fontSize: 13 }} disabled={commitBusy} onClick={commitNow}>
+            : <button className="btn-plain" style={{ fontSize: 13 }} disabled={commitBusy || loading || pendingEvents === 0} onClick={commitNow}>
                 {commitBusy ? "Committing…" : "Commit current period"}
               </button>}
         </div>
@@ -120,17 +134,17 @@ export function SettlementsPage() {
           <div key={s.tally_id} style={{
             display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1.3fr 1.1fr 1fr 1.3fr", gap: 12, padding: "13px 20px",
             borderBottom: "1px solid var(--line)", alignItems: "center",
-            background: !s.settled && s.attributed_count > 0 ? "color-mix(in oklch, var(--accent-wash) 34%, var(--surface))" : undefined,
+            background: canSettle(s) ? "color-mix(in oklch, var(--accent-wash) 34%, var(--surface))" : undefined,
           }}>
             <span className="mono" style={{ fontSize: 12.5, fontWeight: !s.settled ? 600 : 400 }}>{s.period_label}</span>
             <span className="mono" style={{ fontSize: 12.5 }}>{s.count}</span>
             <span className="mono" style={{ fontSize: 12.5 }}>{s.attributed_count}</span>
             <span className="mono" style={{ fontSize: 11.5, color: "var(--ink-2)" }}>{trunc(s.merkle_root, 4, 4)}</span>
-            {s.settled ? <Pill kind="valid">Settled</Pill> : s.attributed_count > 0 ? <Pill kind="pending">Payable</Pill> : <Pill>Committed</Pill>}
-            <span className="mono" style={{ fontSize: 12.5, fontWeight: !s.settled && s.attributed_count > 0 ? 600 : 400 }}>
-              {s.settled ? `${fmtUnits(s.payout_amount)} XLM` : s.attributed_count > 0 ? `${fmtUnits(s.payout_preview)} XLM` : "—"}
+            {s.settled ? <Pill kind="valid">Settled</Pill> : canSettle(s) ? <Pill kind="pending">Payable</Pill> : <Pill>Committed</Pill>}
+            <span className="mono" style={{ fontSize: 12.5, fontWeight: canSettle(s) ? 600 : 400 }}>
+              {s.settled ? `${fmtUnits(s.payout_amount)} XLM` : canSettle(s) ? `${fmtUnits(s.payout_preview)} XLM` : "—"}
             </span>
-            {!s.settled && s.attributed_count > 0
+            {canSettle(s)
               ? <BtnPrimary small style={{ justifySelf: "end" }} onClick={() => setConfirm(s)}>Settle</BtnPrimary>
               : <span style={{ justifySelf: "end" }}><TxLink hash={s.settle_tx || s.commit_tx} /></span>}
           </div>

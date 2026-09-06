@@ -5,7 +5,7 @@ RUN npm ci
 COPY cloud/console/ ./
 RUN npm run build
 
-FROM golang:1.25.12-bookworm AS api
+FROM golang:1.26.8-bookworm AS api
 WORKDIR /src
 COPY sdk/go/ ./sdk/go/
 COPY cloud/api/ ./cloud/api/

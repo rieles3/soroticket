@@ -260,8 +260,8 @@ export function CampaignDetailPage({ id }) {
       <div style={{ display: "flex", gap: 2, borderBottom: "1px solid var(--line)" }}>
         {[["codes", unique ? "Codes" : "Shared code"],
           ...(shared ? [["scans", "Escaneos"], ["qr", "QR de WhatsApp"]] : []),
-          ["settlement", "Settlement"], ["activity", "Activity"]].map(([k, label]) => {
-          const disabled = k === "settlement" && !c.attributed_to;
+          ["settlement", "Tally & settlement"], ["activity", "Activity"]].map(([k, label]) => {
+          const disabled = k === "settlement" && !shared;
           return (
             <span key={k} onClick={() => !disabled && (k === "settlement" ? nav("/settlements") : setTab(k))} style={{
               padding: "9px 16px", fontSize: 13.5, cursor: disabled ? "default" : "pointer",

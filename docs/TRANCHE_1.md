@@ -11,7 +11,7 @@ implementation and local validation. See [the deployment runbook](../cloud/deplo
 
 ## Start from a clean checkout
 
-Install Node **22.15+**, Go **1.25.12**, Rust through rustup and Docker with Compose
+Install Node **22.15+**, Go **1.26.8**, Rust through rustup and Docker with Compose
 v2. The contract pins Rust 1.94.1 in `rust-toolchain.toml`. Stellar CLI 25.2.0 is
 needed only when reproducing deployment. Run all commands below at repository root.
 
@@ -85,6 +85,8 @@ writer. The TS runner stops at the first failed scenario.
 
 Activity is filtered by campaign before limiting results, with tenant/environment
 isolation and cursor pagination. The console exposes loading failures and retry.
+Count-only campaigns can also anchor their receipts from the console; payout
+actions appear only when a positive payout rate is configured.
 Receipt exports include the original signed bytes, avoiding JSON reserialization
 ambiguity in external verification. Go's module path now matches the public
 monorepo, and TS ships a versioned package with the verifier CLI.
