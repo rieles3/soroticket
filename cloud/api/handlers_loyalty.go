@@ -298,7 +298,7 @@ func (s *server) handleGetProgram(w http.ResponseWriter, r *http.Request) {
 		"reward_discount_type": rtype, "reward_discount_value": rval, "created_at": created,
 		"punches": punches, "customers": custCount, "rewards_issued": rwCount, "rewards_redeemed": rwRedeemed,
 		"pending_anchor_events": pendingEvents,
-		"archived": archived == 1, "valid_until": validUntil,
+		"archived":              archived == 1, "valid_until": validUntil,
 	}, "customers": customers, "rewards": rewards})
 }
 

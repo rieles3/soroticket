@@ -1,4 +1,4 @@
-module github.com/soroticket/soroticket-go
+module github.com/unalivio/soroticket/sdk/go
 
 go 1.25.12
 

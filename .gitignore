@@ -30,6 +30,7 @@ secrets/
 # Root landing build and Cloudflare tooling
 /node_modules/
 /dist/
+/artifacts/
 /.wrangler/
 
 # design-sync (claude.ai/design) — staged scripts, build output, machine state

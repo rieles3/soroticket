@@ -1,5 +1,5 @@
 // Command e2e is a consumer tester app for the Soroticket Go SDK
-// (github.com/soroticket/soroticket-go). It generates and funds ephemeral testnet
+// (github.com/unalivio/soroticket/sdk/go). It generates and funds ephemeral testnet
 // accounts and exercises every contract path against the LIVE testnet
 // deployment: both coupon profiles (Burn + Tally), every discount variant,
 // the permissioned actions (owner / delegate / stranger), the settlement flow
@@ -23,7 +23,7 @@ import (
 
 	"github.com/stellar/go-stellar-sdk/keypair"
 
-	sd "github.com/soroticket/soroticket-go"
+	sd "github.com/unalivio/soroticket/sdk/go"
 )
 
 // nativeSAC is the testnet native-XLM Stellar Asset Contract — the settlement

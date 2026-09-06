@@ -227,7 +227,8 @@ func (s *server) handleAuditTally(w http.ResponseWriter, r *http.Request) {
 		leafIndex := int(cursor) + i
 		receipts = append(receipts, map[string]any{
 			"payload": json.RawMessage(sr.payload), "leaf_hash": sr.leaf,
-			"signature": sr.signature, "signer": sr.signer,
+			"payload_base64": base64.StdEncoding.EncodeToString(sr.payload),
+			"signature":      sr.signature, "signer": sr.signer,
 			"proof": merkleProofFromLevels(levels, leafIndex),
 		})
 	}

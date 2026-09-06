@@ -1,22 +1,30 @@
 # Soroticket — end-to-end tests
 
 Consumer tester apps that exercise the Soroticket coupon-ledger contract against
-the **live Stellar testnet** deployment through the published SDKs — one per
-language, each importing its SDK exactly as an external integrator would.
+the **live Stellar testnet** deployment through the SDKs — one per language.
+These development runners use local module links; external package installation
+is checked separately by `npm run package:sdk` and the release validation.
 
 Each runner generates and funds 4 ephemeral testnet accounts (owner, delegate,
-stranger, creator) via friendbot, then walks the **same 50-scenario matrix** and
+stranger, creator) via friendbot, then walks the **same 53-scenario matrix** and
 exits non-zero if any scenario fails.
 
 | Runner | Consumes | Run |
 |---|---|---|
-| `go/` | `github.com/soroticket/soroticket-go` (local `replace`) | `cd go && go run .` |
+| `go/` | `github.com/unalivio/soroticket/sdk/go` (local `replace`) | `cd go && go run .` |
 | `ts/` | `@soroticket/sdk` (local `file:`) | `cd ts && npm install && npm run e2e` |
 
-Both target the contract in `deployments/testnet.json`. A full run takes
+Both target the contract in `deployments/testnet-v0.2.0.json`. A full run takes
 ~3–5 minutes (most steps wait for a testnet ledger to close; the expiry check
 waits for a short-lived campaign to lapse). No secrets or pre-funded accounts
 are required — friendbot funds the ephemeral keypairs.
+
+From repo root, run `npm run bootstrap` and `npm --prefix sdk/ts run build` first.
+`npm run e2e:cloud` verifies the full Cloud Burn/Tally paths and privacy against a
+running API. `npm run e2e:api` executes the Postman collection. Both create
+synthetic tenants and save no signing seeds. See [T1](../../docs/TRANCHE_1.md).
+`node tests/e2e/ts/concurrency.mjs` deliberately races simulated footprints and
+verifies safe recovery. The testnet workflow runs suites sequentially.
 
 ## Scenario matrix (both runners, in order)
 

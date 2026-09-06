@@ -1,0 +1,39 @@
+services:
+  api:
+    image: ${SOROTICKET_IMAGE:-soroticket-cloud:local}
+    build:
+      context: ../..
+      dockerfile: cloud/Dockerfile
+    restart: unless-stopped
+    read_only: true
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    pids_limit: 128
+    mem_limit: 512m
+    cpus: 1.0
+    stop_grace_period: 100s
+    environment:
+      SOROTICKET_CONTRACT_ID: ${SOROTICKET_CONTRACT_ID:-CCXNPRC4C2DX2W7Z2AW35NC6WORZPTI5JWJCTQIVRJ2FLMI3ZZ32MKRF}
+    volumes:
+      - api_data:/data
+    tmpfs: [/tmp:size=64m,mode=1777]
+    ports: ["127.0.0.1:8787:8787"]
+  caddy:
+    image: caddy:2.10.2-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443", "443:443/udp"]
+    environment:
+      SOROTICKET_HOST: ${SOROTICKET_HOST:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+    mem_limit: 128m
+    pids_limit: 128
+volumes:
+  api_data:
+  caddy_data:
+  caddy_config:

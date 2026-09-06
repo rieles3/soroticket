@@ -11,7 +11,7 @@
  *
  *   npm install && npm run e2e
  */
-import { soroticket, keypairSigner, contractErrorCode, approveSettlement, TESTNET } from "@soroticket/sdk";
+import { soroticket, keypairSigner, contractErrorCode, approveSettlement, submitTransaction, TESTNET } from "@soroticket/sdk";
 import { Keypair } from "@stellar/stellar-sdk";
 import { createHash } from "node:crypto";
 
@@ -39,7 +39,8 @@ async function step(name, fn) {
     console.log(`ok    ${name.padEnd(58)} (${Date.now() - t0}ms)`);
   } catch (e) {
     fail++;
-    console.log(`FAIL  ${name.padEnd(58)} (${Date.now() - t0}ms)\n        ↳ ${e?.message ?? e}`);
+    console.error(`FAIL  ${name.padEnd(58)} (${Date.now() - t0}ms)\n${e?.stack ?? e}`);
+    throw e; // A failed setup must not produce misleading dependent failures.
   }
 }
 function assert(cond, msg) { if (!cond) throw new Error(`assertion failed: ${msg}`); }
@@ -53,9 +54,9 @@ function unwrap(r) { return r && typeof r.unwrap === "function" ? r.unwrap() : r
 // and the SDK's isReadCall heuristic would otherwise refuse to submit them —
 // even though they DO change on-chain state. It's a no-op for ordinary writes.
 async function okWrite(thunk) {
-  const tx = await thunk();
-  if (tx?.simulation?.error) throw new Error(`simulation error: ${tx.simulation.error}`);
-  const res = await tx.signAndSend({ force: true });
+  const res = await submitTransaction(thunk, {
+    onTransaction: ({ hash, status }) => console.log(`      tx ${hash} ${status}`),
+  });
   return unwrap(res.result);
 }
 // run a read: build → (reject if sim error) → unwrap

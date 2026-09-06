@@ -1,0 +1,12 @@
+.git
+**/node_modules
+**/target
+**/dist
+**/data
+**/.env*
+**/*.key
+**/*.bin
+*.docx
+*.pdf
+.tmp
+docs/evidence

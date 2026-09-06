@@ -17,7 +17,7 @@ SDK's internal submission retry; an application retry must still reuse its own
 business/idempotency key, especially for campaign creation.
 
 ```bash
-go get github.com/soroticket/soroticket-go
+go get github.com/unalivio/soroticket/sdk/go@v0.2.1-rc.1
 ```
 
 ## Read (no signer)
@@ -97,6 +97,8 @@ match the contract `Error` enum / `abi-v0.2.0.txt`. Most are raised at simulatio
   see `deployments/testnet-v0.2.0.json`). `LegacyTestnetContractID` is the
   deprecated v0.1 deployment — do not use it for new integrations.
 - A `Client` is for sequential use; sequence numbers are loaded per call.
+- A confirmed failed storage-footprint conflict is rebuilt up to three times.
+  Ambiguous submissions are not rebuilt; preserve/reconcile the reported hash.
 
 The E2E apps under `tests/e2e/go` follow the SDK's `TestnetContractID` default,
 so they exercise the v0.2.0 testnet deployment.
