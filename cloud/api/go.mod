@@ -3,7 +3,7 @@ module github.com/soroticket/soroticket-cloud
 go 1.25.12
 
 require (
-	github.com/unalivio/soroticket/sdk/go v0.0.0
+	github.com/rieles3/soroticket/sdk/go v0.0.0
 	github.com/stellar/go-stellar-sdk v0.6.0
 	golang.org/x/crypto v0.45.0
 	modernc.org/sqlite v1.34.4
@@ -34,4 +34,4 @@ require (
 	modernc.org/token v1.1.0 // indirect
 )
 
-replace github.com/unalivio/soroticket/sdk/go => ../../sdk/go
+replace github.com/rieles3/soroticket/sdk/go => ../../sdk/go

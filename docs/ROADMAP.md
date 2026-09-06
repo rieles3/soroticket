@@ -118,4 +118,4 @@ targets so the console and documentation do not imply mock features are live.
 - [ ] Gift-card/stored-value primitive with refund and liability accounting.
 - [ ] Coalition loyalty and cross-merchant settlement.
 - [ ] Complete SEP discussion metadata. The source repository is
-  `https://github.com/unalivio/soroticket`.
+  `https://github.com/rieles3/soroticket`.

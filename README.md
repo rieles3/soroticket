@@ -71,7 +71,7 @@ soroticket/
 ├── contracts/coupon-ledger/   # THE PROTOCOL — reference Soroban contract, Rust
 │                              # Burn + Tally profiles (ADR-002/005/011). v0.2.0 on testnet.
 ├── sdk/
-│   ├── go/                    # github.com/unalivio/soroticket/sdk/go — in-process signing over Soroban RPC
+│   ├── go/                    # github.com/rieles3/soroticket/sdk/go — in-process signing over Soroban RPC
 │   └── ts/                    # @soroticket/sdk — generated typed client + ergonomic + browser wrapper
 │
 ├── cloud/                     # THE HOSTED PRODUCT — optional, never a protocol dependency (ADR-016)

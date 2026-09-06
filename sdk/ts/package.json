@@ -35,7 +35,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/unalivio/soroticket.git",
+    "url": "https://github.com/rieles3/soroticket.git",
     "directory": "sdk/ts"
   },
   "bin": {

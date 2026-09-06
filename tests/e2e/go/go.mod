@@ -3,7 +3,7 @@ module soroticket-e2e
 go 1.25.12
 
 require (
-	github.com/unalivio/soroticket/sdk/go v0.0.0
+	github.com/rieles3/soroticket/sdk/go v0.0.0
 	github.com/stellar/go-stellar-sdk v0.6.0
 )
 
@@ -18,4 +18,4 @@ require (
 	golang.org/x/sync v0.18.0 // indirect
 )
 
-replace github.com/unalivio/soroticket/sdk/go => ../../../sdk/go
+replace github.com/rieles3/soroticket/sdk/go => ../../../sdk/go

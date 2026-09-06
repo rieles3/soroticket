@@ -6,7 +6,7 @@ import (
 
 	"github.com/stellar/go-stellar-sdk/strkey"
 	"github.com/stellar/go-stellar-sdk/xdr"
-	sd "github.com/unalivio/soroticket/sdk/go"
+	sd "github.com/rieles3/soroticket/sdk/go"
 )
 
 // payoutToken is the settlement token for the testnet-only preview. A future

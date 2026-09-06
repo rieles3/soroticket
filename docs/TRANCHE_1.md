@@ -97,7 +97,7 @@ OpenAPI validation against registered routes. Packaging is separately tested by
 installing the tarball into an empty consumer directory.
 
 The PR workflow runs these checks, builds/scans the container and exercises a
-backup restored into a fresh volume. The manually triggered testnet workflow
+backup restored into a fresh volume. The PR/manual testnet workflow
 runs the 53-scenario Go and TS suites, deterministic concurrency and the Cloud
 acceptance paths. Live tests are serialized within that workflow and fail on
 network errors; a compile or skipped network request is never a passing live test.

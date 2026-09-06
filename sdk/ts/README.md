@@ -12,7 +12,7 @@ deprecated v0.1 contract, where those calls do not exist. Testnet preview —
 never point real value at either.
 
 ```bash
-npm install https://github.com/unalivio/soroticket/releases/download/v0.2.1-rc.1/soroticket-sdk-0.2.1-rc.1.tgz
+npm install https://github.com/rieles3/soroticket/releases/download/v0.2.1-rc.1/soroticket-sdk-0.2.1-rc.1.tgz
 ```
 
 Requires Node 22.15+. For a local candidate, `npm run package:sdk` at repository

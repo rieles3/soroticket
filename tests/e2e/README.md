@@ -11,7 +11,7 @@ exits non-zero if any scenario fails.
 
 | Runner | Consumes | Run |
 |---|---|---|
-| `go/` | `github.com/unalivio/soroticket/sdk/go` (local `replace`) | `cd go && go run .` |
+| `go/` | `github.com/rieles3/soroticket/sdk/go` (local `replace`) | `cd go && go run .` |
 | `ts/` | `@soroticket/sdk` (local `file:`) | `cd ts && npm install && npm run e2e` |
 
 Both target the contract in `deployments/testnet-v0.2.0.json`. A full run takes

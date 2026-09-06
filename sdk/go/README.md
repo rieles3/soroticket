@@ -17,7 +17,7 @@ SDK's internal submission retry; an application retry must still reuse its own
 business/idempotency key, especially for campaign creation.
 
 ```bash
-go get github.com/unalivio/soroticket/sdk/go@v0.2.1-rc.1
+go get github.com/rieles3/soroticket/sdk/go@v0.2.1-rc.1
 ```
 
 ## Read (no signer)

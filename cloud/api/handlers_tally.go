@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	sd "github.com/unalivio/soroticket/sdk/go"
+	sd "github.com/rieles3/soroticket/sdk/go"
 )
 
 // isoWeekPeriod encodes an ISO week as YYYYWW (e.g. 202628). If one week needs

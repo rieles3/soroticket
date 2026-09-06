@@ -18,7 +18,7 @@ import (
 
 	"github.com/stellar/go-stellar-sdk/keypair"
 
-	sd "github.com/unalivio/soroticket/sdk/go"
+	sd "github.com/rieles3/soroticket/sdk/go"
 )
 
 // v1 runs both environments against the Stellar testnet contract: "test" is
