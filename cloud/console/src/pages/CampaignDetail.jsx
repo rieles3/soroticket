@@ -260,8 +260,8 @@ export function CampaignDetailPage({ id }) {
       <div style={{ display: "flex", gap: 2, borderBottom: "1px solid var(--line)" }}>
         {[["codes", unique ? "Codes" : "Shared code"],
           ...(shared ? [["scans", "Escaneos"], ["qr", "QR de WhatsApp"]] : []),
-          ["settlement", "Settlement"], ["activity", "Activity"]].map(([k, label]) => {
-          const disabled = k === "settlement" && !c.attributed_to;
+          ["settlement", "Tally & settlement"], ["activity", "Activity"]].map(([k, label]) => {
+          const disabled = k === "settlement" && !shared;
           return (
             <span key={k} onClick={() => !disabled && (k === "settlement" ? nav("/settlements") : setTab(k))} style={{
               padding: "9px 16px", fontSize: 13.5, cursor: disabled ? "default" : "pointer",
@@ -338,7 +338,7 @@ export function CampaignDetailPage({ id }) {
       {tab === "scans" && <ScansPanel c={c} />}
       {tab === "qr" && <QRPanel c={c} />}
 
-      {tab === "activity" && <ActivityList campaignID={c.id} />}
+      {tab === "activity" && <ActivityList key={`${c.id}:${env}`} campaignID={c.id} />}
 
       {issue && <IssueModal c={c} onClose={(changed) => { setIssue(false); if (changed) load(); }} />}
       {events && <EventsModal c={c} onClose={(changed) => { setEvents(false); if (changed) load(); }} />}
@@ -349,20 +349,33 @@ export function CampaignDetailPage({ id }) {
 function ActivityList({ campaignID }) {
   const { env } = useApp();
   const [items, setItems] = useState([]);
+  const [cursor, setCursor] = useState(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(null);
+  const [retry, setRetry] = useState(0);
   useEffect(() => {
-    api.get("/v1/activity").then((d) => setItems(d.activity.filter((a) => a.campaign_id === campaignID))).catch(() => {});
-  }, [campaignID, env]);
-  if (!items.length) return <div className="empty"><span className="mono" style={{ fontSize: 12.5, color: "var(--ink-3)" }}>No activity for this campaign yet.</span></div>;
+    let active = true;
+    setLoading(true); setError("");
+    api.get(`/v1/activity?campaign_id=${campaignID}&limit=50${page ? `&cursor=${page}` : ""}`)
+      .then((d) => { if (active) { setItems((prev) => page ? [...prev, ...d.activity] : d.activity); setCursor(d.next_cursor); } })
+      .catch((e) => { if (active) setError(e.message); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [campaignID, env, page, retry]);
   return (
     <div className="card" style={{ padding: "8px 0" }}>
       {items.map((a, i) => (
-        <div key={i} style={{ display: "flex", alignItems: "center", gap: 9, padding: "9px 22px", borderTop: i ? "1px solid var(--line)" : "none", fontSize: 12.5 }}>
+        <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 9, padding: "9px 22px", borderTop: i ? "1px solid var(--line)" : "none", fontSize: 12.5 }}>
           <span className="mono" style={{ fontSize: 11, color: "var(--ink-3)", width: 76, flex: "none" }}>{fmtDateTime(a.ts)}</span>
           {a.code && <span className={"code-chip" + (a.kind === "rejected" ? " bad" : "")}>{a.code}</span>}
           <span style={{ color: a.kind === "rejected" ? "var(--burned)" : "var(--ink-2)" }}>{a.message}</span>
           <span style={{ marginLeft: "auto" }}><TxLink hash={a.tx_hash} /></span>
         </div>
       ))}
+      {error && <div className="empty" role="alert">{error} <button className="btn" disabled={loading} onClick={() => setRetry((n) => n + 1)}>Retry</button></div>}
+      {!items.length && !error && <div className="empty" role="status">{loading ? "Loading activity…" : "No activity for this campaign yet."}</div>}
+      {cursor && <button className="btn" disabled={loading} onClick={() => setPage(cursor)}>{loading ? "Loading…" : "Load older activity"}</button>}
     </div>
   );
 }

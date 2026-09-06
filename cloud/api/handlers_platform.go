@@ -3,6 +3,7 @@ package main
 import (
 	"math/big"
 	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -150,7 +151,59 @@ func (s *server) recentActivity(a *authCtx, limit int) []map[string]any {
 
 func (s *server) handleActivity(w http.ResponseWriter, r *http.Request) {
 	a := authFrom(r)
-	writeJSON(w, 200, map[string]any{"activity": s.recentActivity(a, 100)})
+	values := map[string]int64{"campaign_id": 0, "cursor": 0, "limit": 50}
+	for key := range values {
+		if raw := r.URL.Query().Get(key); raw != "" {
+			n, err := strconv.ParseInt(raw, 10, 64)
+			if err != nil || n <= 0 || (key == "limit" && n > 100) {
+				writeProblem(w, 400, "campaign_id and cursor must be positive integers; limit must be 1..100")
+				return
+			}
+			values[key] = n
+		}
+	}
+	limit := values["limit"]
+	query := `SELECT id, ts, kind, COALESCE(code,''), message, COALESCE(tx_hash,''), COALESCE(error_code,0), COALESCE(campaign_id,0)
+ FROM activity WHERE org_id = ? AND env = ?`
+	args := []any{a.OrgID, a.Env}
+	if cid := values["campaign_id"]; cid != 0 {
+		query += " AND campaign_id = ?"
+		args = append(args, cid)
+	}
+	if cursor := values["cursor"]; cursor != 0 {
+		query += " AND id < ?"
+		args = append(args, cursor)
+	}
+	query += " ORDER BY id DESC LIMIT ?"
+	args = append(args, limit+1)
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		writeInternal(w, err, "load activity")
+		return
+	}
+	defer rows.Close()
+	items := []map[string]any{}
+	var nextCursor any
+	var lastID int64
+	for rows.Next() {
+		if int64(len(items)) == limit {
+			nextCursor = lastID
+			break
+		}
+		var id, ts, ecode, cid int64
+		var kind, code, msg, tx string
+		if err := rows.Scan(&id, &ts, &kind, &code, &msg, &tx, &ecode, &cid); err != nil {
+			writeInternal(w, err, "decode activity")
+			return
+		}
+		lastID = id
+		items = append(items, map[string]any{"id": id, "ts": ts, "kind": kind, "code": code, "message": msg, "tx_hash": tx, "error_code": ecode, "campaign_id": cid})
+	}
+	if err := rows.Err(); err != nil {
+		writeInternal(w, err, "read activity")
+		return
+	}
+	writeJSON(w, 200, map[string]any{"activity": items, "next_cursor": nextCursor})
 }
 
 // ── usage & credits ─────────────────────────────────────────────────

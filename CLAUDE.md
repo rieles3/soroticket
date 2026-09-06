@@ -16,9 +16,9 @@ Do not describe either preview environment as production or mainnet.
 - **This repo is the home of the protocol.** It is NOT a feature of BotCore. BotCore was only the prototype where the code originated.
 - Everything under `reference/botcore-donor/` is archived donor/prototype code;
   it is not part of the runtime or the current security boundary.
-- `contracts/coupon-ledger/` is the current candidate v0.2 source. The immutable
-  v0.1 testnet deployment is deprecated and remains the SDK default only until
-  an authorized v0.2 deployment exists.
+- `contracts/coupon-ledger/` is the deployed v0.2.0 testnet source. The immutable
+  v0.1 testnet deployment is deprecated. SDKs, Cloud and playground default to
+  v0.2.0; see `deployments/testnet-v0.2.0.json`.
 - The design target and its trust boundaries live in `docs/SPEC.md` and
   `docs/DECISIONS.md`. The deployed address never overrides those warnings.
 
@@ -65,8 +65,8 @@ Do not describe either preview environment as production or mainnet.
 ## Stack
 
 - **Contract:** Rust + Soroban SDK (`contracts/coupon-ledger/`). Build/test with the `stellar`/`soroban` CLI and `cargo test`.
-- **SDKs:** `sdk/ts` and `sdk/go`; their checked-in defaults are explicitly
-  legacy testnet until v0.2 is deployed.
+- **SDKs:** `sdk/ts` and `sdk/go`; their checked-in defaults target v0.2.0
+  testnet. `npm run check` and `docs/TRANCHE_1.md` cover candidate acceptance.
 - **E2E apps:** historical consumer scenarios under `tests/e2e`; a compile or
   prior run is not evidence that the current candidate was tested live.
 - **Settlement:** SAC payout is implemented locally in v0.2 and requires an

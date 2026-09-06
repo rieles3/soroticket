@@ -12,8 +12,13 @@ deprecated v0.1 contract, where those calls do not exist. Testnet preview —
 never point real value at either.
 
 ```bash
-npm install   # then: npm run build
+npm install https://github.com/rieles3/soroticket/releases/download/v0.2.1-rc.1/soroticket-sdk-0.2.1-rc.1.tgz
 ```
+
+Requires Node 22.15+. For a local candidate, `npm run package:sdk` at repository
+root produces the same installable tarball under `artifacts/sdk/` and tests it in
+an empty consumer directory. Registry publication is separate from these versioned
+release assets; do not assume an unversioned `npm install @soroticket/sdk` is available.
 
 ## Read (no signer)
 
@@ -30,7 +35,7 @@ const mine = (await c.campaigns_of({ owner: "G..." })).result; // bigint[]
 ## Write — server (keypair)
 
 ```ts
-import { soroticket, keypairSigner } from "@soroticket/sdk";
+import { soroticket, keypairSigner, submitTransaction } from "@soroticket/sdk";
 
 const signer = keypairSigner(process.env.SECRET!); // S...
 const c = soroticket({
@@ -39,17 +44,17 @@ const c = soroticket({
   signTransaction: signer.signTransaction,
 });
 
-const tx = await c.create_campaign({
+const submitted = await submitTransaction(() => c.create_campaign({
   owner: signer.publicKey, name: "Cafe", discount_type: "percentage",
   discount_value: 1000n, total_supply: 100, valid_until: 9999999999n,
-});
-const campaignId = (await tx.signAndSend()).result.unwrap();
+}));
+const campaignId = submitted.result.unwrap();
 ```
 
 ## Write — browser (Freighter)
 
 ```ts
-import { soroticket, freighterSigner, redeemerCommitment } from "@soroticket/sdk";
+import { soroticket, freighterSigner, redeemerCommitment, submitTransaction } from "@soroticket/sdk";
 
 const signer = await freighterSigner();
 const c = soroticket({
@@ -60,9 +65,26 @@ const c = soroticket({
 
 // redeem: commit the redeemer reference off-chain (no PII on-chain)
 const { hash } = await redeemerCommitment("order-8842");
-const tx = await c.redeem_unique({ authorizer: signer.publicKey, campaign_id: 1n, code: "DEMO0001", redeemer_ref_hash: hash });
-const receipt = (await tx.signAndSend()).result.unwrap();
+const submitted = await submitTransaction(() => c.redeem_unique({ authorizer: signer.publicKey, campaign_id: 1n, code: "DEMO0001", redeemer_ref_hash: hash }));
+const receipt = submitted.result.unwrap();
 ```
+
+`submitTransaction` rebuilds only a confirmed FAILED storage-footprint conflict.
+`SubmissionError.hash` identifies ambiguous submissions that require reconciliation;
+do not blindly retry the business operation. A rebuild may prompt Freighter again.
+
+## Verify Cloud receipts independently
+
+```sh
+npx soroticket-verify tally-evidence.json
+```
+
+The CLI reads the tally root/count from testnet RPC. `verifyReceipt` and
+`verifyTally` are also exported for integrations. They validate original
+`payload_base64` bytes, Ed25519 signatures, receipt identity, Merkle inclusion,
+complete counts and the ordered root. See `docs/quickstarts/TALLY.md` in the repo
+for generating synthetic evidence. A receipt proves attestation and inclusion;
+the signer remains the trust anchor for the underlying off-chain event.
 
 ## Tally (shared codes)
 

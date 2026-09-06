@@ -10,12 +10,15 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -33,6 +36,25 @@ type server struct {
 }
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
+		client := &http.Client{Timeout: 3 * time.Second}
+		res, err := client.Get("http://127.0.0.1:8787/readyz")
+		if err != nil {
+			os.Exit(1)
+		}
+		res.Body.Close()
+		if res.StatusCode != 200 {
+			os.Exit(1)
+		}
+		return
+	}
+	if configured := os.Getenv("SOROTICKET_CONTRACT_ID"); configured != "" {
+		if !validStellarAddress(configured) || !strings.HasPrefix(configured, "C") {
+			log.Fatal("SOROTICKET_CONTRACT_ID must be a valid contract address")
+		}
+		currentContractID = configured
+	}
+
 	dataDir := envOr("SOROTICKET_DATA", "data")
 	if err := os.MkdirAll(dataDir, 0o700); err != nil {
 		log.Fatal(err)
@@ -63,6 +85,64 @@ func main() {
 		loginAttempts: map[string]loginAttempt{}, rateWindows: map[string]rateWindow{},
 	}
 
+	go s.webhookLoop()
+
+	addr := envOr("SDCLOUD_ADDR", "127.0.0.1:8787")
+	log.Printf("soroticket-cloud listening on http://%s (data: %s)", addr, dataDir)
+	httpServer := &http.Server{
+		Addr:              addr,
+		Handler:           s.handler(os.Getenv("SOROTICKET_CONSOLE_DIR")),
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      90 * time.Second, // Soroban submissions may span ledgers
+		IdleTimeout:       120 * time.Second,
+		MaxHeaderBytes:    64 << 10,
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	shutdownDone := make(chan struct{})
+	go func() {
+		defer close(shutdownDone)
+		<-ctx.Done()
+		timeout, cancel := context.WithTimeout(context.Background(), 95*time.Second)
+		defer cancel()
+		if err := httpServer.Shutdown(timeout); err != nil {
+			log.Printf("shutdown: %v", err)
+		}
+	}()
+	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		log.Fatal(err)
+	}
+	<-shutdownDone
+	if err := db.Close(); err != nil {
+		log.Printf("close database: %v", err)
+	}
+}
+
+func securityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'")
+		w.Header().Set("Referrer-Policy", "no-referrer")
+		w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+		if r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https") {
+			w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func envOr(k, def string) string {
+	if v := os.Getenv(k); v != "" {
+		return v
+	}
+	return def
+}
+
+func (s *server) routes() http.Handler {
 	mux := http.NewServeMux()
 
 	// health
@@ -71,6 +151,15 @@ func main() {
 	})
 	mux.HandleFunc("GET /v1/audit/tallies/{chain_id}/{code}/{period}", s.limitPublicAudit(s.handleAuditTally))
 
+	mux.HandleFunc("GET /readyz", func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+		defer cancel()
+		if err := s.db.PingContext(ctx); err != nil {
+			writeProblem(w, 503, "database unavailable")
+			return
+		}
+		writeJSON(w, 200, map[string]any{"ok": true, "network": cloudNetwork, "contract_id": currentContractID})
+	})
 	// auth + org (session)
 	mux.HandleFunc("POST /auth/signup", s.handleSignup)
 	mux.HandleFunc("POST /auth/login", s.handleLogin)
@@ -121,41 +210,5 @@ func main() {
 	mux.HandleFunc("POST /v1/webhooks/{id}/disable", auth(s.idempotent("webhook_disable", s.handleDisableWebhook)))
 	mux.HandleFunc("POST /v1/webhooks/{id}/test", auth(s.idempotent("webhook_test", s.handleTestWebhook)))
 
-	go s.webhookLoop()
-
-	addr := envOr("SDCLOUD_ADDR", "127.0.0.1:8787")
-	log.Printf("soroticket-cloud listening on http://%s (data: %s)", addr, dataDir)
-	httpServer := &http.Server{
-		Addr:              addr,
-		Handler:           securityHeaders(mux),
-		ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout:       15 * time.Second,
-		WriteTimeout:      90 * time.Second, // Soroban submissions may span ledgers
-		IdleTimeout:       120 * time.Second,
-		MaxHeaderBytes:    64 << 10,
-	}
-	log.Fatal(httpServer.ListenAndServe())
-}
-
-func securityHeaders(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Cache-Control", "no-store")
-		w.Header().Set("Pragma", "no-cache")
-		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("X-Frame-Options", "DENY")
-		w.Header().Set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'")
-		w.Header().Set("Referrer-Policy", "no-referrer")
-		w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
-		if r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https") {
-			w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
-func envOr(k, def string) string {
-	if v := os.Getenv(k); v != "" {
-		return v
-	}
-	return def
+	return securityHeaders(mux)
 }

@@ -1,0 +1,20 @@
+import {spawnSync} from 'node:child_process';
+import {mkdir,readFile,writeFile,mkdtemp} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import {tmpdir} from 'node:os';
+import {dirname,resolve} from 'node:path';
+import {fileURLToPath} from 'node:url';
+const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
+const output=resolve(root,'artifacts/sdk');await mkdir(output,{recursive:true});
+const npm=process.env.npm_execpath||resolve(dirname(process.execPath),'../lib/node_modules/npm/bin/npm-cli.js');
+const env={...process.env,PATH:`${dirname(process.execPath)}:${process.env.PATH}`};
+function run(args,cwd){const r=spawnSync(process.execPath,args,{cwd,env,encoding:'utf8'});if(r.status!==0)throw new Error(r.stderr||r.stdout);return r.stdout}
+run(['node_modules/typescript/bin/tsc'],resolve(root,'sdk/ts'));
+const [pack]=JSON.parse(run([npm,'pack','--json','--pack-destination',output],resolve(root,'sdk/ts')));
+const file=resolve(output,pack.filename),bytes=await readFile(file);
+await writeFile(resolve(output,'SHA256SUMS'),`${createHash('sha256').update(bytes).digest('hex')}  ${pack.filename}\n`);
+const consumer=await mkdtemp(resolve(tmpdir(),'soroticket-sdk-consumer-'));
+await writeFile(resolve(consumer,'package.json'),JSON.stringify({private:true,type:'module'}));
+run([npm,'install','--ignore-scripts','--no-audit','--no-fund',file],consumer);
+run(['--input-type=module','-e',`import {soroticket,TESTNET,submitTransaction,verifyTally} from '@soroticket/sdk'; if(soroticket().options.contractId!==TESTNET.contractId || typeof submitTransaction!=='function' || typeof verifyTally!=='function')throw Error('invalid package'); console.log('external consumer imports passed')`],consumer);
+console.log(`Installable SDK verified outside the repository: ${file}`);

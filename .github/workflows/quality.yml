@@ -1,0 +1,55 @@
+name: Tranche 1 quality
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: '**/package-lock.json'
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.8'
+          cache-dependency-path: '**/go.sum'
+      - name: Install pinned Rust toolchain
+        working-directory: contracts/coupon-ledger
+        run: rustup show active-toolchain
+      - run: npm run bootstrap
+      - run: npm run check
+      - run: npm run package:sdk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdk-package
+          path: artifacts/sdk/*
+  container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Build backend and console
+        run: docker build -f cloud/Dockerfile -t soroticket-cloud:${{ github.sha }} .
+      - name: Scan runtime image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: soroticket-cloud:${{ github.sha }}
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: '1'
+      - name: Runtime, persistence and backup recovery
+        run: node scripts/check-container.mjs soroticket-cloud:${{ github.sha }}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	sd "github.com/soroticket/soroticket-go"
+	sd "github.com/rieles3/soroticket/sdk/go"
 )
 
 // isoWeekPeriod encodes an ISO week as YYYYWW (e.g. 202628). If one week needs
@@ -358,7 +359,8 @@ func (s *server) handleRecordEvents(w http.ResponseWriter, r *http.Request) {
 		"ok": true,
 		"receipt": map[string]any{
 			"payload": json.RawMessage(receipt.Payload), "leaf_hash": hexRoot(receipt.Leaf),
-			"signature": receipt.Signature, "signer": receipt.Signer,
+			"payload_base64": base64.StdEncoding.EncodeToString(receipt.Payload),
+			"signature":      receipt.Signature, "signer": receipt.Signer,
 		},
 	}
 	var pending int64

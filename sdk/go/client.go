@@ -196,6 +196,18 @@ func (c *Client) invoke(ctx context.Context, method string, args []xdr.ScVal) (x
 }
 
 func (c *Client) invokeAt(ctx context.Context, contractID xdr.ContractId, method string, args []xdr.ScVal) (xdr.ScVal, error) {
+	for attempt := 0; ; attempt++ {
+		value, err := c.invokeOnce(ctx, contractID, method, args)
+		var conflict *footprintConflictError
+		if attempt >= 2 || !errors.As(err, &conflict) || ctx.Err() != nil {
+			return value, err
+		}
+		// Only a confirmed FAILED invocation is rebuilt. Unknown submissions
+		// keep their hash and must be reconciled, never blindly re-executed.
+	}
+}
+
+func (c *Client) invokeOnce(ctx context.Context, contractID xdr.ContractId, method string, args []xdr.ScVal) (xdr.ScVal, error) {
 	c.lastTxHash = ""
 	if c.cfg.Signer == nil {
 		return xdr.ScVal{}, errors.New("a signer is required for writes")
@@ -305,6 +317,9 @@ func (c *Client) submitAndPoll(ctx context.Context, env, hash, method string) (x
 				c.lastTxHash = hash
 				return value, nil
 			case protocol.TransactionStatusFailed:
+				if hasFootprintConflict(got.DiagnosticEventsXDR) {
+					return xdr.ScVal{}, &footprintConflictError{hash: hash}
+				}
 				return xdr.ScVal{}, classifyFailure(got.ResultXDR, got.DiagnosticEventsXDR,
 					fmt.Sprintf("tx %s failed", hash))
 			default:
@@ -313,6 +328,23 @@ func (c *Client) submitAndPoll(ctx context.Context, env, hash, method string) (x
 		}
 	}
 	return xdr.ScVal{}, fmt.Errorf("submit %s exhausted retries: %w", method, lastErr)
+}
+
+type footprintConflictError struct{ hash string }
+
+func (e *footprintConflictError) Error() string {
+	return "confirmed stale storage footprint: " + e.hash
+}
+
+func hasFootprintConflict(diagnostics []string) bool {
+	for _, encoded := range diagnostics {
+		var event xdr.DiagnosticEvent
+		if xdr.SafeUnmarshalBase64(encoded, &event) == nil &&
+			strings.Contains(event.String(), "trying to access contract data key outside of the footprint") {
+			return true
+		}
+	}
+	return false
 }
 
 func backoff(attempt int) time.Duration {

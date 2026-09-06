@@ -61,16 +61,17 @@ Spec nouns: **Campaign → Code → Redemption → Settlement.**
 
 ## Repo layout
 
-A monorepo by layout, not by tooling: every unit below builds on its own (four Go
-modules, six npm packages, one Rust crate) and there is no workspace file, no
-Makefile and no CI. Nothing here is published as a package yet.
+Four Go modules, six npm packages and one Rust crate share a bootstrap/quality
+entry point and GitHub Actions checks. The T1 candidate includes installable SDK
+artifacts, independent receipt verification and a container for the API/console.
+Start with [the T1 guide](docs/TRANCHE_1.md).
 
 ```
 soroticket/
 ├── contracts/coupon-ledger/   # THE PROTOCOL — reference Soroban contract, Rust
 │                              # Burn + Tally profiles (ADR-002/005/011). v0.2.0 on testnet.
 ├── sdk/
-│   ├── go/                    # github.com/soroticket/soroticket-go — in-process signing over Soroban RPC
+│   ├── go/                    # github.com/rieles3/soroticket/sdk/go — in-process signing over Soroban RPC
 │   └── ts/                    # @soroticket/sdk — generated typed client + ergonomic + browser wrapper
 │
 ├── cloud/                     # THE HOSTED PRODUCT — optional, never a protocol dependency (ADR-016)
@@ -101,39 +102,37 @@ soroticket/
 
 ## Verify it yourself
 
-Every claim above is reproducible from a clean checkout. Requires Go 1.25+, Rust
+The commands below validate individual components. Requires Go 1.26.8, Rust
 with the `wasm32v1-none` target, the [`stellar`](https://developers.stellar.org/docs/tools/developer-tools) CLI and Node 22.
 
 ```bash
-# 1. The contract: 34 unit tests, including the settlement and attribution invariants
-cd contracts/coupon-ledger && cargo test
+# From repository root: all contract/Go tests, SDK/frontend builds and OpenAPI
+npm run bootstrap
+npm run check
+npm run package:sdk
 
-# 2. Reproducible build — this hash IS the deployed contract
-stellar contract build
-shasum -a 256 target/wasm32v1-none/release/coupon_ledger.wasm
+# Reproducible contract build
+(cd contracts/coupon-ledger && stellar contract build)
+shasum -a 256 contracts/coupon-ledger/target/wasm32v1-none/release/coupon_ledger.wasm
 # 1c6c74f2f43c60aa06939d6e63c49a1809c98a7cebd9555453a4297c5f04c94b
 # matches "wasmHash" in deployments/testnet-v0.2.0.json, which also carries the
 # upload and deploy transaction hashes you can look up on testnet.
 
-# 3. Cloud API: 36 tests, most of them regression tests for the audit findings
-cd cloud/api && go test ./... && go vet ./...
-
-# 4. SDKs and front-ends
-cd sdk/go && go test ./...
-cd sdk/ts && npm install && npm run build
-cd web && npm install && npm run build           # developer playground
-cd cloud/console && npm install && npm run build # merchant portal
-npm install && npm run build                     # public landing → dist/
 ```
 
 To run Cloud locally: `cd cloud/api && go run .` serves `127.0.0.1:8787` and
 creates `./data/` on first start (SQLite, plus a generated key-encryption key).
 `cd cloud/console && npm run dev` points at it.
 
-Two honest caveats about the above. `cargo test` and `go test` are unit and
-integration tests against local state — they are not evidence of a live network
-run; those are in `tests/e2e/`, and a compile is not a run. And there is **no CI**,
-so nothing enforces that the commands above stay green between commits.
+For a complete check from repository root, run `npm run bootstrap` followed by
+`npm run check` and `npm run package:sdk`. GitHub Actions runs these on PRs.
+Local contract/Go tests do not establish live-network behavior; the testnet
+workflow and `tests/e2e/` provide that separate evidence.
+
+The landing is live at **https://soroticket.com**, connected to Cloudflare Pages
+with automatic deployment from `main`. Backend hosting is separate and awaits
+server provisioning; [the tested container/runbook](cloud/deploy/README.md) serves
+the API and console on one origin.
 
 ## Documentation
 
@@ -141,6 +140,7 @@ Read in this order:
 
 | Document | What it answers |
 |---|---|
+| [`docs/TRANCHE_1.md`](docs/TRANCHE_1.md) | T1 bootstrap, Burn/Tally walkthroughs, OpenAPI, collection and review gates |
 | [`docs/SPEC.md`](docs/SPEC.md) | What the protocol is — the design target, data model, and the trust boundary |
 | [`docs/DECISIONS.md`](docs/DECISIONS.md) | Why it is built this way — 18 ADRs, including the ones written in response to audit findings |
 | [`docs/SECURITY_AUDIT_2026-07-11.md`](docs/SECURITY_AUDIT_2026-07-11.md) | What was found and fixed — 20 findings with IDs, plus residual risks and the release criteria (Spanish) |
@@ -156,9 +156,10 @@ is the part worth being honest about. The full list is in `docs/ROADMAP.md`.
 
 - **No independent audit.** The 2026-07-11 review was internal and assisted. An
   external audit is a release gate, not a formality.
-- **No CI**, and no provenance for build artifacts.
+- **No independently signed build attestation yet.** Candidate artifacts include
+  commit IDs and checksums; CI checks and container scanning are configured.
 - **Custodial keys** are encrypted with a local key-encryption key. KMS/HSM,
-  rotation and recovery runbooks are missing.
+  rotation remain production work. The preview has a tested backup/restore runbook.
 - **Auth is incomplete** for production: no MFA, email verification, password
   reset or account recovery.
 - **SQLite, single instance.** The chain-write/local-index boundary has no

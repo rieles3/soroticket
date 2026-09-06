@@ -267,7 +267,7 @@ func TestPublicTallyAuditRejectsPayloadLeafMismatch(t *testing.T) {
 	}
 	if _, err := s.db.Exec(`INSERT INTO campaigns
 	  (id,org_id,env,chain_id,contract_id,kind,name,discount_type,discount_value,total_supply,valid_until,created_at)
-	  VALUES (1,7,'test',42,'`+currentContractID+`','coupon','Audit','percentage',1000,100,9999999999,100)`); err != nil {
+	  VALUES (1,7,'test',42,'` + currentContractID + `','coupon','Audit','percentage',1000,100,9999999999,100)`); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.db.Exec(`INSERT INTO shared_codes (id,campaign_id,code,payout_rate,created_at) VALUES (1,1,'SAVE','0',100)`); err != nil {
@@ -350,8 +350,8 @@ func TestPublicTallyAuditIsScopedByContractDeployment(t *testing.T) {
 	// contract's tally (quarantined, no signed receipts) and the current one.
 	if _, err := s.db.Exec(`INSERT INTO campaigns
 	  (id,org_id,env,chain_id,contract_id,kind,name,discount_type,discount_value,total_supply,valid_until,created_at)
-	  VALUES (1,7,'test',42,'`+legacyContractID+`','coupon','Old','percentage',1000,100,9999999999,100),
-	         (2,7,'test',42,'`+currentContractID+`','coupon','New','percentage',1000,100,9999999999,100)`); err != nil {
+	  VALUES (1,7,'test',42,'` + legacyContractID + `','coupon','Old','percentage',1000,100,9999999999,100),
+	         (2,7,'test',42,'` + currentContractID + `','coupon','New','percentage',1000,100,9999999999,100)`); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.db.Exec(`INSERT INTO shared_codes (id,campaign_id,code,payout_rate,created_at)
@@ -430,7 +430,7 @@ func TestPublicTallyAuditIsPaginatedWithReusableMerkleLevels(t *testing.T) {
 	}
 	if _, err := s.db.Exec(`INSERT INTO campaigns
 	  (id,org_id,env,chain_id,contract_id,kind,name,discount_type,discount_value,total_supply,valid_until,created_at)
-	  VALUES (1,7,'test',42,'`+currentContractID+`','coupon','Paged audit','percentage',1000,100,9999999999,100)`); err != nil {
+	  VALUES (1,7,'test',42,'` + currentContractID + `','coupon','Paged audit','percentage',1000,100,9999999999,100)`); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.db.Exec(`INSERT INTO shared_codes (id,campaign_id,code,payout_rate,created_at) VALUES (1,1,'SAVE','0',100)`); err != nil {
@@ -828,7 +828,7 @@ func TestGeneratedCodeBatchIsBoundedBeforeAllocation(t *testing.T) {
 	}
 	if _, err := s.db.Exec(`INSERT INTO campaigns
 	  (id,org_id,env,chain_id,contract_id,kind,name,discount_type,discount_value,total_supply,valid_until,created_at)
-	  VALUES (1,7,'test',42,'`+currentContractID+`','ticket','Bounded','fixed_amount',1,100,9999999999,0)`); err != nil {
+	  VALUES (1,7,'test',42,'` + currentContractID + `','ticket','Bounded','fixed_amount',1,100,9999999999,0)`); err != nil {
 		t.Fatal(err)
 	}
 	r := authedRequest(http.MethodPost, "/v1/campaigns/1/codes", `{"generate":{"count":1000000000}}`, "", "test")
@@ -848,8 +848,8 @@ func TestResolveCodeRoutesSharedThenUniqueWithinOrg(t *testing.T) {
 	}
 	if _, err := s.db.Exec(`INSERT INTO campaigns
 	  (id,org_id,env,chain_id,contract_id,kind,name,discount_type,discount_value,total_supply,valid_until,created_at)
-	  VALUES (1,7,'test',41,'`+currentContractID+`','gift','Copas','free_item',1,100,9999999999,0),
-	         (2,7,'test',42,'`+currentContractID+`','ticket','Jazz','entry',1,100,9999999999,0)`); err != nil {
+	  VALUES (1,7,'test',41,'` + currentContractID + `','gift','Copas','free_item',1,100,9999999999,0),
+	         (2,7,'test',42,'` + currentContractID + `','ticket','Jazz','entry',1,100,9999999999,0)`); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.db.Exec(`INSERT INTO shared_codes (id,campaign_id,code,payout_rate,created_at) VALUES (1,1,'COPA-ROSALES','0',0)`); err != nil {
@@ -885,7 +885,7 @@ func TestScanTokenIsOpaqueStableAndResolvable(t *testing.T) {
 	}
 	if _, err := s.db.Exec(`INSERT INTO campaigns
 	  (id,org_id,env,chain_id,contract_id,kind,name,discount_type,discount_value,total_supply,valid_until,created_at)
-	  VALUES (1,7,'test',41,'`+currentContractID+`','gift','Copas','free_item',1,100,9999999999,0)`); err != nil {
+	  VALUES (1,7,'test',41,'` + currentContractID + `','gift','Copas','free_item',1,100,9999999999,0)`); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.db.Exec(`INSERT INTO shared_codes (id,campaign_id,code,payout_rate,created_at) VALUES (1,1,'COPA-ROSALES','0',0)`); err != nil {
@@ -973,7 +973,7 @@ func TestLegacyContractRowsFailClosedOnChainOperations(t *testing.T) {
 	}
 	if _, err := s.db.Exec(`INSERT INTO campaigns
 	  (id,org_id,env,chain_id,contract_id,kind,name,discount_type,discount_value,total_supply,valid_until,created_at)
-	  VALUES (1,7,'test',42,'`+legacyContractID+`','coupon','Old deployment','percentage',1000,100,9999999999,0)`); err != nil {
+	  VALUES (1,7,'test',42,'` + legacyContractID + `','coupon','Old deployment','percentage',1000,100,9999999999,0)`); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.db.Exec(`INSERT INTO shared_codes (id,campaign_id,code,payout_rate,created_at)
@@ -1110,7 +1110,7 @@ func TestCampaignSeparatesTotalAndPendingSharedEvents(t *testing.T) {
 	}
 	if _, err := s.db.Exec(`INSERT INTO campaigns
 	  (id,org_id,env,chain_id,contract_id,kind,name,discount_type,discount_value,total_supply,valid_until,created_at)
-	  VALUES (1,7,'test',42,'`+currentContractID+`','coupon','Counts','percentage',1000,100,9999999999,0)`); err != nil {
+	  VALUES (1,7,'test',42,'` + currentContractID + `','coupon','Counts','percentage',1000,100,9999999999,0)`); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.db.Exec(`INSERT INTO shared_codes (id,campaign_id,code,payout_rate,created_at) VALUES (1,1,'SAVE','0',0)`); err != nil {
@@ -1136,7 +1136,7 @@ func TestCloudUsesBoundedBatchPeriodsWithinOneISOWeek(t *testing.T) {
 	}
 	if _, err := s.db.Exec(`INSERT INTO campaigns
 	  (id,org_id,env,chain_id,contract_id,kind,name,discount_type,discount_value,total_supply,valid_until,created_at)
-	  VALUES (1,7,'test',42,'`+currentContractID+`','coupon','Batches','percentage',1000,100,9999999999,0)`); err != nil {
+	  VALUES (1,7,'test',42,'` + currentContractID + `','coupon','Batches','percentage',1000,100,9999999999,0)`); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.db.Exec(`INSERT INTO shared_codes (id,campaign_id,code,payout_rate,created_at) VALUES (1,1,'SAVE','0',0)`); err != nil {

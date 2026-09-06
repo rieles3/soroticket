@@ -4,9 +4,21 @@
   "scripts": {
     "dev": "node scripts/dev-server.mjs",
     "build": "node scripts/build-landing.mjs",
-    "deploy": "npm run build && wrangler deploy"
+    "deploy": "npm run build && wrangler deploy",
+    "bootstrap": "node scripts/quality.mjs bootstrap",
+    "check": "node scripts/quality.mjs check",
+    "check:api": "node scripts/check-openapi.mjs",
+    "package:sdk": "node scripts/package-sdk.mjs",
+    "e2e:cloud": "node tests/e2e/cloud-t1/walkthrough.mjs",
+    "e2e:api": "node scripts/run-api-collection.mjs",
+    "package:release": "node scripts/package-release.mjs"
   },
   "devDependencies": {
+    "@apidevtools/swagger-parser": "^12.1.0",
+    "newman": "^6.2.1",
     "wrangler": "^4.118.0"
+  },
+  "engines": {
+    "node": ">=22.15.0"
   }
 }

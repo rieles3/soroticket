@@ -1,6 +1,6 @@
-module github.com/soroticket/soroticket-go
+module github.com/rieles3/soroticket/sdk/go
 
-go 1.25.12
+go 1.26.8
 
 require github.com/stellar/go-stellar-sdk v0.6.0
 

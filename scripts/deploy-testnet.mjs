@@ -1,0 +1,38 @@
+import {spawnSync,execFileSync} from 'node:child_process';
+import {mkdtemp,mkdir,readFile,writeFile} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {resolve,dirname} from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {createHash} from 'node:crypto';
+const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
+const output=resolve(root,'artifacts/deployment');
+await mkdir(output,{recursive:true});
+const config=await mkdtemp(resolve(tmpdir(),'soroticket-testnet-keys-'));
+const stellar=process.env.STELLAR_BIN??'stellar';
+function run(args,cwd=root){
+ const result=spawnSync(stellar,[...args,'--config-dir',config],{cwd,encoding:'utf8',timeout:180000});
+ if(result.error)throw result.error;
+ if(result.status!==0)throw new Error(result.stderr||'Stellar CLI failed');
+ return {stdout:result.stdout.trim(),stderr:result.stderr};
+}
+run(['contract','build'],resolve(root,'contracts/coupon-ledger'));
+const wasm=resolve(root,'contracts/coupon-ledger/target/wasm32v1-none/release/coupon_ledger.wasm');
+const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
+const wasmHash=hash(await readFile(wasm));
+const canonical=JSON.parse(await readFile(resolve(root,'deployments/testnet-v0.2.0.json')));
+if(wasmHash!==canonical.wasmHash)throw new Error('Build differs from the frozen v0.2.0 contract');
+run(['keys','generate','reviewer','--fund','--network','testnet']);
+const deployer=run(['keys','address','reviewer']).stdout;
+const deployed=run(['contract','deploy','--wasm',wasm,'--source','reviewer','--network','testnet']);
+const contractId=deployed.stdout;
+if(!/^C[A-Z2-7]{55}$/.test(contractId))throw new Error('CLI did not return a contract ID');
+const fetched=resolve(output,'downloaded.wasm');
+run(['contract','fetch','--id',contractId,'--network','testnet','--out-file',fetched]);
+if(hash(await readFile(fetched))!==wasmHash)throw new Error('Remote WASM differs from local build');
+const transactions=[...new Set([...deployed.stderr.matchAll(/\/testnet\/tx\/([a-f0-9]{64})/g)].map(m=>m[1]))];
+if(!transactions.length)throw new Error('Deployment succeeded but CLI output contains no transaction link; preserve deploy output and reconcile before retrying');
+const manifest={network:'testnet',contract_id:contractId,deployer,wasm_sha256:wasmHash,transactions,created_at:new Date().toISOString(),source_commit:execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim(),source_dirty:execFileSync('git',['status','--porcelain','--untracked-files=no'],{cwd:root,encoding:'utf8'}).trim()!==''};
+await writeFile(resolve(output,'deployment.json'),JSON.stringify(manifest,null,2)+'\n');
+await writeFile(resolve(output,'deploy.log'),deployed.stderr);
+console.log(JSON.stringify(manifest,null,2));
+console.log('Ephemeral testnet signing configuration stays outside the artifacts directory. Defaults were not changed.');

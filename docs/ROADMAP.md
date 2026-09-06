@@ -1,9 +1,15 @@
 # Soroticket — roadmap and release gates
 
-Status snapshot: 2026-07-12. This file distinguishes working code from design
+Status snapshot: 2026-09-05. This file distinguishes working code from design
 targets so the console and documentation do not imply mock features are live.
 
 ## Current artifacts
+
+- **T1 candidate 0.2.1-rc.1:** unified quality/CI, container and recovery test,
+  baseline OpenAPI/Postman, SDK packaging, independent receipt verifier,
+  privacy acceptance and campaign activity pagination. See [T1](TRANCHE_1.md).
+  Contract ABI/WASM stay v0.2.0. The landing is live on Cloudflare Pages with
+  automatic `main` deployment; the backend host still awaits provisioning.
 
 - **v0.2.0 testnet:** deployed 2026-07-12 at
   `CCXNPRC4C2DX2W7Z2AW35NC6WORZPTI5JWJCTQIVRJ2FLMI3ZZ32MKRF`
@@ -71,8 +77,8 @@ targets so the console and documentation do not imply mock features are live.
   including exact-attribution commits, settle-without-allowance rejection
   (#18), the owner's exact allowance approval and a third-party keeper
   settlement that consumes the allowance to zero.
-- [ ] Publish a signed receipt verifier package/CLI, not only the Cloud
-  endpoint.
+- [x] Ship the independent signed receipt verifier library/CLI in the T1
+  versioned SDK candidate; it reads the root from Soroban RPC.
 
 ## Production blockers
 
@@ -111,5 +117,5 @@ targets so the console and documentation do not imply mock features are live.
 - [ ] Shared-code global caps and per-redeemer policy enforcement.
 - [ ] Gift-card/stored-value primitive with refund and liability accounting.
 - [ ] Coalition loyalty and cross-merchant settlement.
-- [ ] Configure the real repository/discussion URLs and complete SEP metadata
-  before publication; no remote is configured today.
+- [ ] Complete SEP discussion metadata. The source repository is
+  `https://github.com/rieles3/soroticket`.

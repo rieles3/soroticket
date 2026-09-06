@@ -1,0 +1,874 @@
+{
+  "info": {
+    "name": "Soroticket T1 — Burn and Tally (testnet)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Synthetic fixtures only. Run sequentially with a 1500 ms request delay and 100000 ms request timeout. New tenant each run. For independent RPC, signature and privacy verification also run npm run e2e:cloud."
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8787"
+    }
+  ],
+  "item": [
+    {
+      "name": "Ready",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-Env",
+            "value": "test"
+          }
+        ],
+        "url": "{{base_url}}/readyz"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const run=pm.variables.replaceIn('{{$guid}}'); pm.collectionVariables.set('run',run); pm.collectionVariables.set('password',pm.variables.replaceIn('{{$guid}}')); pm.collectionVariables.set('fund_attempt',0);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "if (pm.response.code !== 200) { pm.execution.setNextRequest(null); } else {",
+              "const data = pm.response.json();",
+              "pm.test('testnet only',()=>pm.expect(data.network).to.eql('testnet')); pm.collectionVariables.set('contract_id',data.contract_id);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sign up",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Env",
+            "value": "test"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/auth/signup",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"postman-{{run}}@example.test\",\n  \"password\": \"{{password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+              "if (pm.response.code !== 201) { pm.execution.setNextRequest(null); } else {",
+              "const data = pm.response.json();",
+              "",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Create organization",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Env",
+            "value": "test"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/orgs",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"T1 Postman {{run}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+              "if (pm.response.code !== 201) { pm.execution.setNextRequest(null); } else {",
+              "const data = pm.response.json();",
+              "",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Create API key",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Env",
+            "value": "test"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{$guid}}"
+          }
+        ],
+        "url": "{{base_url}}/v1/keys",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"label\": \"T1 collection\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+              "if (pm.response.code !== 201) { pm.execution.setNextRequest(null); } else {",
+              "const data = pm.response.json();",
+              "pm.collectionVariables.set('api_key',data.key); pm.collectionVariables.set('key_id',data.id);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Wait for testnet funding",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-Env",
+            "value": "test"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{api_key}}"
+          }
+        ],
+        "url": "{{base_url}}/v1/overview"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "if (pm.response.code !== 200) { pm.execution.setNextRequest(null); } else {",
+              "const data = pm.response.json();",
+              "if (!data.account_funded) { const attempt=Number(pm.collectionVariables.get('fund_attempt'))+1; pm.collectionVariables.set('fund_attempt',attempt); pm.test('funded within 60 polls',()=>pm.expect(attempt).to.be.below(60)); pm.execution.setNextRequest(attempt<60 ? 'Wait for testnet funding' : null); }",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Create Burn campaign",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Env",
+            "value": "test"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{api_key}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{$guid}}"
+          }
+        ],
+        "url": "{{base_url}}/v1/campaigns",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"kind\": \"ticket\",\n  \"name\": \"T1 Postman Burn\",\n  \"discount_type\": \"free_item\",\n  \"discount_value\": 1,\n  \"total_supply\": 1\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+              "if (pm.response.code !== 201) { pm.execution.setNextRequest(null); } else {",
+              "const data = pm.response.json();",
+              "pm.collectionVariables.set('burn_id',data.id);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Issue unique code",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Env",
+            "value": "test"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{api_key}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{$guid}}"
+          }
+        ],
+        "url": "{{base_url}}/v1/campaigns/{{burn_id}}/codes",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"codes\": [\n    \"T1-POSTMAN\"\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+              "if (pm.response.code !== 201) { pm.execution.setNextRequest(null); } else {",
+              "const data = pm.response.json();",
+              "pm.test('one issued',()=>pm.expect(data.issued.length).to.eql(1));",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Verify unique code",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-Env",
+            "value": "test"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{api_key}}"
+          }
+        ],
+        "url": "{{base_url}}/v1/verify?campaign_id={{burn_id}}&code=T1-POSTMAN"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "if (pm.response.code !== 200) { pm.execution.setNextRequest(null); } else {",
+              "const data = pm.response.json();",
+              "",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Redeem unique code",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Env",
+            "value": "test"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{api_key}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{$guid}}"
+          }
+        ],
+        "url": "{{base_url}}/v1/redemptions",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"campaign_id\": {{burn_id}},\n  \"code\": \"T1-POSTMAN\",\n  \"redeemer_ref\": \"synthetic-{{run}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+              "if (pm.response.code !== 201) { pm.execution.setNextRequest(null); } else {",
+              "const data = pm.response.json();",
+              "",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject second redemption",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Env",
+            "value": "test"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{api_key}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{$guid}}"
+          }
+        ],
+        "url": "{{base_url}}/v1/redemptions",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"campaign_id\": {{burn_id}},\n  \"code\": \"T1-POSTMAN\",\n  \"redeemer_ref\": \"synthetic-{{run}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 409', () => pm.response.to.have.status(409));",
+              "if (pm.response.code !== 409) { pm.execution.setNextRequest(null); } else {",
+              "const data = pm.response.json();",
+              "pm.test('AlreadyRedeemed',()=>pm.expect(data.code).to.eql(3));",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Campaign activity",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-Env",
+            "value": "test"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{api_key}}"
+          }
+        ],
+        "url": "{{base_url}}/v1/activity?campaign_id={{burn_id}}&limit=2"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "if (pm.response.code !== 200) { pm.execution.setNextRequest(null); } else {",
+              "const data = pm.response.json();",
+              "pm.test('activity has pagination',()=>pm.expect(data).to.have.property('next_cursor'));",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Create Tally campaign",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Env",
+            "value": "test"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{api_key}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{$guid}}"
+          }
+        ],
+        "url": "{{base_url}}/v1/campaigns",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"kind\": \"gift\",\n  \"name\": \"T1 Postman Tally\",\n  \"discount_type\": \"free_item\",\n  \"discount_value\": 1,\n  \"shared\": {\n    \"code\": \"T1-TALLY\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+              "if (pm.response.code !== 201) { pm.execution.setNextRequest(null); } else {",
+              "const data = pm.response.json();",
+              "pm.collectionVariables.set('tally_id',data.id); pm.collectionVariables.set('chain_id',data.chain_id);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Record signed receipt 1",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Env",
+            "value": "test"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{api_key}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{$guid}}"
+          }
+        ],
+        "url": "{{base_url}}/v1/shared-codes/{{tally_id}}/T1-TALLY/events",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"customer_ref\": \"synthetic-person-1\",\n  \"order_ref\": \"synthetic-order-1\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+              "if (pm.response.code !== 201) { pm.execution.setNextRequest(null); } else {",
+              "const data = pm.response.json();",
+              "pm.test('original signed bytes available',()=>pm.expect(data.receipt.payload_base64).to.be.a('string'));",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Record signed receipt 2",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Env",
+            "value": "test"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{api_key}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{$guid}}"
+          }
+        ],
+        "url": "{{base_url}}/v1/shared-codes/{{tally_id}}/T1-TALLY/events",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"customer_ref\": \"synthetic-person-2\",\n  \"order_ref\": \"synthetic-order-2\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+              "if (pm.response.code !== 201) { pm.execution.setNextRequest(null); } else {",
+              "const data = pm.response.json();",
+              "pm.test('original signed bytes available',()=>pm.expect(data.receipt.payload_base64).to.be.a('string'));",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Record signed receipt 3",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Env",
+            "value": "test"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{api_key}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{$guid}}"
+          }
+        ],
+        "url": "{{base_url}}/v1/shared-codes/{{tally_id}}/T1-TALLY/events",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"customer_ref\": \"synthetic-person-3\",\n  \"order_ref\": \"synthetic-order-3\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+              "if (pm.response.code !== 201) { pm.execution.setNextRequest(null); } else {",
+              "const data = pm.response.json();",
+              "pm.test('original signed bytes available',()=>pm.expect(data.receipt.payload_base64).to.be.a('string'));",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject duplicate business reference",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Env",
+            "value": "test"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{api_key}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{$guid}}"
+          }
+        ],
+        "url": "{{base_url}}/v1/shared-codes/{{tally_id}}/T1-TALLY/events",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"customer_ref\": \"synthetic-person-1\",\n  \"order_ref\": \"synthetic-order-1\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 409', () => pm.response.to.have.status(409));",
+              "if (pm.response.code !== 409) { pm.execution.setNextRequest(null); } else {",
+              "const data = pm.response.json();",
+              "",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Commit Tally",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Env",
+            "value": "test"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{api_key}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{$guid}}"
+          }
+        ],
+        "url": "{{base_url}}/v1/shared-codes/{{tally_id}}/T1-TALLY/commits",
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+              "if (pm.response.code !== 201) { pm.execution.setNextRequest(null); } else {",
+              "const data = pm.response.json();",
+              "pm.collectionVariables.set('period',data.period); pm.collectionVariables.set('root',data.merkle_root);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Public audit proofs",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-Env",
+            "value": "test"
+          }
+        ],
+        "url": "{{base_url}}/v1/audit/tallies/{{chain_id}}/T1-TALLY/{{period}}?contract={{contract_id}}&limit=100"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "if (pm.response.code !== 200) { pm.execution.setNextRequest(null); } else {",
+              "const data = pm.response.json();",
+              "pm.test('three receipts',()=>pm.expect(data.receipts.length).to.eql(3)); pm.test('anchored root',()=>pm.expect(data.merkle_root).to.eql(pm.collectionVariables.get('root')));",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Revoke API key",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Env",
+            "value": "test"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{api_key}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{$guid}}"
+          }
+        ],
+        "url": "{{base_url}}/v1/keys/{{key_id}}/revoke",
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "if (pm.response.code !== 200) { pm.execution.setNextRequest(null); } else {",
+              "const data = pm.response.json();",
+              "",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject revoked API key",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-Env",
+            "value": "test"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{api_key}}"
+          }
+        ],
+        "url": "{{base_url}}/v1/campaigns"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+              "if (pm.response.code !== 401) { pm.execution.setNextRequest(null); } else {",
+              "const data = pm.response.json();",
+              "pm.collectionVariables.unset('api_key'); pm.collectionVariables.unset('password');",
+              "}"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

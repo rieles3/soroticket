@@ -18,7 +18,7 @@ import (
 
 	"github.com/stellar/go-stellar-sdk/keypair"
 
-	sd "github.com/soroticket/soroticket-go"
+	sd "github.com/rieles3/soroticket/sdk/go"
 )
 
 // v1 runs both environments against the Stellar testnet contract: "test" is
@@ -26,7 +26,7 @@ import (
 
 // currentContractID pins the reviewed v0.2.0 testnet deployment
 // (2026-07-12; see deployments/testnet-v0.2.0.json).
-const currentContractID = "CCXNPRC4C2DX2W7Z2AW35NC6WORZPTI5JWJCTQIVRJ2FLMI3ZZ32MKRF"
+var currentContractID = "CCXNPRC4C2DX2W7Z2AW35NC6WORZPTI5JWJCTQIVRJ2FLMI3ZZ32MKRF"
 
 // cloudNetwork names the Stellar network every Cloud environment runs on.
 // Receipts embed it (v2) so a receipt can never be confused across networks.

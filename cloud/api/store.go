@@ -284,6 +284,7 @@ CREATE TABLE IF NOT EXISTS activity (
   campaign_id INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_activity_org ON activity(org_id, env, ts DESC);
+CREATE INDEX IF NOT EXISTS idx_activity_campaign ON activity(org_id, env, campaign_id, id DESC);
 
 CREATE TABLE IF NOT EXISTS idempotency (
   key TEXT NOT NULL,
